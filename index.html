@@ -217,13 +217,8 @@
 
           return (
             <svg viewBox={`${finalX} ${finalY} ${finalW} ${finalH}`} className="w-full h-auto max-h-[50vh] md:max-h-full" style={{ touchAction: "none", objectFit: "contain" }}>
-              <defs>
-                <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#475569" />
-                  <stop offset="100%" stopColor="#1e293b" />
-                </linearGradient>
-              </defs>
-              <circle cx={O.x} cy={O.y} r={R} fill="none" stroke="url(#circleGrad)" strokeWidth={2.5 * scale} />
+              {/* Премахнат е градиентът, за да се вижда окръжността на 100% */}
+              <circle cx={O.x} cy={O.y} r={R} fill="none" stroke="#334155" strokeWidth={2.5 * scale} />
               
               {givenKeys.includes('angleAOB') && renderAngleMark(O, B, A, R*0.16, "#9CA3AF", 15)}
               {givenKeys.includes('angleMAN') && renderAngleMark(A, M, N, R*0.33, "#3B82F6", 2.5)}
@@ -407,7 +402,7 @@
                   
                   <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-700 text-center mb-6 md:mb-8 drop-shadow-sm pb-2">
                     Окръжност и ъгли
-                    <span className="block text-lg sm:text-2xl md:text-3xl font-medium text-slate-500 mt-2 md:mt-3 tracking-wide">Интерактивен образователен ресурс</span>
+                    <span className="block text-lg sm:text-2xl md:text-3xl font-medium text-slate-500 mt-2 md:mt-3 tracking-wide">Динамичен образователен модел</span>
                   </h1>
 
                   {/* ИЗОБРАЖЕНИЕ */}
@@ -428,16 +423,16 @@
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-10 md:mb-16 w-full max-w-4xl mx-auto">
                     <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-xl smooth-transition transform hover:-translate-y-1 border-t-4 border-blue-500">
                       <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xl md:text-2xl mb-4 shadow-inner">📖</div>
-                      <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-2 md:mb-3">Обучение</h3>
+                      <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-2 md:mb-3">Режим "Обучение"</h3>
                       <p className="text-slate-600 text-sm leading-relaxed">
-                        Изследвайте зависимостите чрез промяна на стойностите с помощта на плъзгачите. Чертежът се преизчислява и визуализира в реално време.
+                        Експериментирайте свободно! Променяйте стойностите чрез плъзгачите и наблюдавайте как се изменят геометричните зависимости в реално време.
                       </p>
                     </div>
                     <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-xl smooth-transition transform hover:-translate-y-1 border-t-4 border-emerald-500">
                       <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-xl md:text-2xl mb-4 shadow-inner">✍️</div>
-                      <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-2 md:mb-3">Тест</h3>
+                      <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-2 md:mb-3">Режим "Тест"</h3>
                       <p className="text-slate-600 text-sm leading-relaxed">
-                        Системата генерира случайни комбинации от дадени елементи. Въвеждайте отговорите си и получавайте моментална обратна връзка.
+                        Проверете знанията си с автоматично генерирани задачи. Въвеждайте отговорите си и получавайте незабавна обратна връзка.
                       </p>
                     </div>
                   </div>
@@ -448,7 +443,7 @@
                     className="group relative inline-flex items-center justify-center px-8 py-4 md:px-14 md:py-5 text-xl md:text-2xl font-black text-white bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 rounded-full shadow-[0_10px_40px_rgba(59,130,246,0.5)] border-b-[6px] md:border-b-[8px] border-indigo-800 hover:border-b-[3px] hover:translate-y-[3px] active:border-b-0 active:translate-y-[6px] md:hover:border-b-[4px] md:hover:translate-y-[4px] md:active:border-b-0 md:active:translate-y-[8px] transition-all duration-150 overflow-hidden w-full sm:w-auto"
                   >
                     <span className="absolute w-0 h-0 transition-all duration-500 ease-out bg-white rounded-full group-hover:w-[150%] group-hover:h-72 opacity-10"></span>
-                    <span className="relative flex items-center gap-3">Започни работа <span className="text-2xl md:text-3xl leading-none">🚀</span></span>
+                    <span className="relative flex items-center gap-3">Да започваме! <span className="text-2xl md:text-3xl leading-none">🚀</span></span>
                   </button>
 
                 </main>
