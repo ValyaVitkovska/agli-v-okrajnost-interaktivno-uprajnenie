@@ -217,7 +217,6 @@
 
           return (
             <svg viewBox={`${finalX} ${finalY} ${finalW} ${finalH}`} className="w-full h-auto max-h-[60vh] md:max-h-full" style={{ touchAction: "none", objectFit: "contain" }}>
-              {/* Окръжност с много лек градиент за обем */}
               <defs>
                 <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#475569" />
@@ -234,12 +233,10 @@
               {givenKeys.includes('angleACB') && renderAngleMark(C, A, B, R*0.25, "#EF4444", 2.5)}
               {givenKeys.includes('angleKOA') && renderAngleMark(O, K, A, R*0.25, "#8B5CF6", 2.5)}
 
-              {/* Помощни пунктирирани линии */}
               <line x1={O.x} y1={O.y} x2={A.x} y2={A.y} stroke="#cbd5e1" strokeWidth={1.5 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
               <line x1={O.x} y1={O.y} x2={B.x} y2={B.y} stroke="#cbd5e1" strokeWidth={1.5 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
               <line x1={O.x} y1={O.y} x2={K.x} y2={K.y} stroke="#94a3b8" strokeWidth={1.5 * scale} strokeDasharray={`${4*scale},${4*scale}`} />
               
-              {/* Основни прави */}
               {C && (
                 <React.Fragment>
                   <line x1={A.x} y1={A.y} x2={C.x} y2={C.y} stroke="#475569" strokeWidth={1.5 * scale} />
@@ -251,10 +248,8 @@
               <line x1={B.x} y1={B.y} x2={N.x} y2={N.y} stroke="#475569" strokeWidth={1.5 * scale} />
               <line x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke="#475569" strokeWidth={1.5 * scale} />
               
-              {/* Допирателна */}
               <line x1={E_line_start.x} y1={E_line_start.y} x2={E_line_end.x} y2={E_line_end.y} stroke="#334155" strokeWidth={2.5 * scale} strokeLinecap="round" />
 
-              {/* Точки */}
               {[
                 { p: O, label: "O", ox: 0, oy: 22 },
                 { p: A, label: "A", ox: -16, oy: 16 },
@@ -274,13 +269,11 @@
                 </g>
               ))}
 
-              {/* Стойности на даденото */}
               {givenKeys.map(key => {
                 const pos = labelPositions[key];
                 if (!pos) return null;
                 return (
                   <g key={key}>
-                    {/* Бял фон за по-добра четимост върху линиите */}
                     <text x={pos.x} y={pos.y} fontSize={15 * scale} fill="white" fontWeight="900" stroke="white" strokeWidth={4 * scale} strokeLinejoin="round" textAnchor="middle" dominantBaseline="middle">
                       {vals[key]}°
                     </text>
@@ -407,19 +400,18 @@
           if (currentScreen === 'home') {
             return (
               <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col font-sans text-slate-800 relative overflow-hidden">
-                {/* Декоративни фонови елементи */}
                 <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
                 <div className="absolute top-[20%] right-[-10%] w-96 h-96 bg-indigo-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
 
                 <main className="flex-grow flex flex-col items-center justify-center p-6 w-full max-w-6xl mx-auto z-10">
                   
-                  <h1 className="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-700 text-center mb-8 drop-shadow-sm pb-2">
+                  <h1 className="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-700 text-center mb-8 drop-shadow-sm pb-2">
                     Окръжност и ъгли
                     <span className="block text-xl md:text-3xl font-medium text-slate-500 mt-3 tracking-wide">Интерактивен образователен ресурс</span>
                   </h1>
 
-                  {/* Изображение */}
-                  <div className="w-full max-w-2xl bg-white p-2 rounded-3xl shadow-2xl border border-white/50 mb-12 flex justify-center items-center overflow-hidden min-h-[250px] transform hover:scale-[1.02] smooth-transition backdrop-blur-sm bg-white/70">
+                  {/* ОГРОМНО ИЗОБРАЖЕНИЕ */}
+                  <div className="w-full max-w-4xl bg-white p-4 rounded-3xl shadow-2xl border border-white/50 mb-14 flex justify-center items-center overflow-hidden min-h-[350px] transform hover:scale-[1.02] smooth-transition backdrop-blur-sm bg-white/70">
                     <img 
                       src="AOIU.png" 
                       alt="Окръжност и ъгъл лого" 
@@ -432,8 +424,8 @@
                     />
                   </div>
 
-                  {/* Указания за работа с красиви карти */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14 w-full">
+                  {/* КАРТИ (ЦЕНТРИРАНИ, БЕЗ "ЗА УЧИТЕЛИ") */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16 w-full max-w-4xl mx-auto">
                     <div className="bg-white p-8 rounded-3xl shadow-lg hover:shadow-xl smooth-transition transform hover:-translate-y-1 border-t-4 border-blue-500">
                       <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl mb-4 shadow-inner">📖</div>
                       <h3 className="text-xl font-bold text-slate-800 mb-3">Обучение</h3>
@@ -448,20 +440,15 @@
                         Системата генерира случайни комбинации от дадени елементи. Въвеждайте отговорите си и получавайте моментална обратна връзка.
                       </p>
                     </div>
-                    <div className="bg-white p-8 rounded-3xl shadow-lg hover:shadow-xl smooth-transition transform hover:-translate-y-1 border-t-4 border-indigo-500">
-                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 text-2xl mb-4 shadow-inner">🖨️</div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-3">За учители</h3>
-                      <p className="text-slate-600 text-sm leading-relaxed">
-                        За да отключите функцията за печат, <b>кликнете 5 пъти бързо върху заглавието</b> в приложението. Генерира 17 уникални варианта + ключ.
-                      </p>
-                    </div>
                   </div>
 
+                  {/* ЕКСТРЕМЕН 3D БУТОН */}
                   <button 
                     onClick={() => setCurrentScreen('app')}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-12 rounded-full text-lg shadow-md border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1 flex items-center gap-2 transition-all"
+                    className="group relative inline-flex items-center justify-center px-14 py-5 text-2xl font-black text-white bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 rounded-full shadow-[0_10px_40px_rgba(59,130,246,0.5)] border-b-[8px] border-indigo-800 hover:border-b-[4px] hover:translate-y-[4px] active:border-b-0 active:translate-y-[8px] transition-all duration-150 overflow-hidden"
                   >
-                    Започни работа <span>&rarr;</span>
+                    <span className="absolute w-0 h-0 transition-all duration-500 ease-out bg-white rounded-full group-hover:w-[150%] group-hover:h-72 opacity-10"></span>
+                    <span className="relative flex items-center gap-3">Започни работа <span className="text-3xl leading-none">🚀</span></span>
                   </button>
 
                 </main>
@@ -603,9 +590,10 @@
                 
                 {/* Хедър с Навигация */}
                 <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-2xl border border-slate-200 shadow-sm">
+                  {/* 3D Бутон "Начало" */}
                   <button 
                     onClick={() => setCurrentScreen('home')}
-                    className="text-slate-500 hover:text-indigo-600 bg-white font-bold p-2.5 rounded-xl shadow-sm border border-b-4 border-slate-200 hover:bg-slate-50 active:border-b active:translate-y-[3px] transition-all"
+                    className="text-white bg-gradient-to-r from-blue-500 to-indigo-500 font-bold p-2.5 rounded-xl shadow-lg shadow-blue-500/30 border border-b-[4px] border-indigo-700 hover:border-b-[2px] hover:translate-y-[2px] active:border-b-0 active:translate-y-[4px] transition-all"
                     title="Към началната страница"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
