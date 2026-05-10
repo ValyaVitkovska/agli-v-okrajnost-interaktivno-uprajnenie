@@ -278,29 +278,27 @@
         // --- ОСНОВНО ПРИЛОЖЕНИЕ ---
         function GeometryApp() {
           const [currentScreen, setCurrentScreen] = useState('home');
-          
           const [baseAngle, setBaseAngle] = useState(30);
           const [arcAB, setArcAB] = useState(120);
           const [arcBM, setArcBM] = useState(120);
           const [angleMAN, setAngleMAN] = useState(20);
-          
           const [mode, setMode] = useState('learn'); 
           const [userAnswers, setUserAnswers] = useState({});
           
           const [studentNumber, setStudentNumber] = useState('');
+          const [studentClass, setStudentClass] = useState('');
           const [examGenerated, setExamGenerated] = useState(false);
 
           const [isPrintPreview, setIsPrintPreview] = useState(false);
           const [printModeType, setPrintModeType] = useState('variants'); 
+          const [isGenerating, setIsGenerating] = useState(false); // ДОБАВЕНО И ПОПРАВЕНО!
           
           const [isTeacherMode, setIsTeacherMode] = useState(false);
           const [clickCount, setClickCount] = useState(0);
+          const [teacherKeyClass, setTeacherKeyClass] = useState('B');
 
           const [variants, setVariants] = useState([]);
           const [interactiveGivenKeys, setInteractiveGivenKeys] = useState(GIVEN_TEMPLATES[0]);
-
-          const [studentClass, setStudentClass] = useState('');
-          const [teacherKeyClass, setTeacherKeyClass] = useState('B');
 
           const getVariantByNumber = (num, cls = 'B') => {
             let classOffset = cls ? cls.toUpperCase().charCodeAt(0) * 137 : 0;
@@ -333,14 +331,11 @@
             return { id: num, arcAB: v_arcAB, arcBM: v_arcBM, angleMAN: v_angleMAN, givenKeys, soughtKeys, vals };
           };
 
-          // --- ПРОМЕНЕНА ЛОГИКА ЗА ЗАСИЧАНЕ НА КЛИКВАНЕ ---
           useEffect(() => {
             if (clickCount >= 5) {
-              // Превключваме учителятски режим при 5 клика и зануляваме
               setIsTeacherMode(prev => !prev);
               setClickCount(0);
             } else if (clickCount > 0) {
-              // Увеличено време: 1.2 секунди толеранс между кликванията
               const timer = setTimeout(() => setClickCount(0), 1200);
               return () => clearTimeout(timer);
             }
@@ -379,40 +374,43 @@
 
           const handleGenerateAndPrint = () => {
             setIsGenerating(true);
-            let newVariants = [];
-            let attempts = 0;
-
-            while (newVariants.length < 17 && attempts < 2000) {
-              attempts++;
-              const v_arcAB = Math.floor(Math.random() * 8 + 5) * 10; 
-              const v_arcBM = Math.floor(Math.random() * 8 + 5) * 10; 
-              const v_angleMAN = Math.floor(Math.random() * 5 + 3) * 5; 
-              const arcMN = v_angleMAN * 2;
-              
-              if (v_arcAB + v_arcBM + arcMN >= 340) continue; 
-              const arcAN = 360 - v_arcAB - v_arcBM - arcMN;
-              if (arcAN < 20) continue;
-              if (Math.abs(v_arcAB - arcMN) < 30) continue;
-
-              const vals = {
-                arcAB: v_arcAB, arcBM: v_arcBM, arcMN: arcMN, arcAKN: arcAN,
-                angleAOB: v_arcAB, angleMAN: v_angleMAN, angleBAM: v_arcBM / 2,
-                angleMBE: v_arcBM / 2, angleMPN: (v_arcAB + arcMN) / 2,
-                angleACB: Math.abs(v_arcAB - arcMN) / 2, angleKOA: arcAN / 2
-              };
-
-              const givenKeys = GIVEN_TEMPLATES[Math.floor(Math.random() * GIVEN_TEMPLATES.length)];
-              const soughtKeys = ALL_KEYS.filter(k => !givenKeys.includes(k));
-
-              newVariants.push({ id: newVariants.length + 1, arcAB: v_arcAB, arcBM: v_arcBM, angleMAN: v_angleMAN, givenKeys, soughtKeys, vals });
-            }
-
-            setVariants(newVariants);
-            setPrintModeType('variants');
-            setIsPrintPreview(true);
-            setIsGenerating(false);
-
-            setTimeout(() => { try { window.print(); } catch (err) { } }, 1500); 
+            
+            setTimeout(() => {
+              let newVariants = [];
+              let attempts = 0;
+  
+              while (newVariants.length < 17 && attempts < 2000) {
+                attempts++;
+                const v_arcAB = Math.floor(Math.random() * 8 + 5) * 10; 
+                const v_arcBM = Math.floor(Math.random() * 8 + 5) * 10; 
+                const v_angleMAN = Math.floor(Math.random() * 5 + 3) * 5; 
+                const arcMN = v_angleMAN * 2;
+                
+                if (v_arcAB + v_arcBM + arcMN >= 340) continue; 
+                const arcAN = 360 - v_arcAB - v_arcBM - arcMN;
+                if (arcAN < 20) continue;
+                if (Math.abs(v_arcAB - arcMN) < 30) continue;
+  
+                const vals = {
+                  arcAB: v_arcAB, arcBM: v_arcBM, arcMN: arcMN, arcAKN: arcAN,
+                  angleAOB: v_arcAB, angleMAN: v_angleMAN, angleBAM: v_arcBM / 2,
+                  angleMBE: v_arcBM / 2, angleMPN: (v_arcAB + arcMN) / 2,
+                  angleACB: Math.abs(v_arcAB - arcMN) / 2, angleKOA: arcAN / 2
+                };
+  
+                const givenKeys = GIVEN_TEMPLATES[Math.floor(Math.random() * GIVEN_TEMPLATES.length)];
+                const soughtKeys = ALL_KEYS.filter(k => !givenKeys.includes(k));
+  
+                newVariants.push({ id: newVariants.length + 1, arcAB: v_arcAB, arcBM: v_arcBM, angleMAN: v_angleMAN, givenKeys, soughtKeys, vals });
+              }
+  
+              setVariants(newVariants);
+              setPrintModeType('variants');
+              setIsPrintPreview(true);
+              setIsGenerating(false);
+  
+              setTimeout(() => { try { window.print(); } catch (err) { } }, 500); 
+            }, 100);
           };
 
           const handleExamGenerate = () => {
@@ -441,12 +439,15 @@
 
           const executePrint = () => { try { window.print(); } catch (err) { } };
 
-          // ANTI-CHEAT ФУНКЦИИ
           const preventCopy = (e) => {
               if (mode === 'exam') {
                   e.preventDefault();
               }
           };
+
+          const displayGivenKeys = mode === 'learn' ? ['arcAB', 'arcBM', 'angleMAN'] : interactiveGivenKeys;
+          const displaySoughtKeys = ALL_KEYS.filter(k => !displayGivenKeys.includes(k));
+          const currentWatermark = (mode === 'exam' && examGenerated) ? `Клас ${studentClass.toUpperCase()} - № ${studentNumber}` : "";
 
           // ====================================================================================
           // РЕЖИМ 1: ИЗГЛЕД ЗА ПЕЧАТ (С ДВАТА ВАРИАНТА - КЛЮЧ ИЛИ 17 ВАРИАНТА)
@@ -570,12 +571,6 @@
             );
           }
 
-          const displayGivenKeys = mode === 'learn' ? ['arcAB', 'arcBM', 'angleMAN'] : interactiveGivenKeys;
-          const displaySoughtKeys = ALL_KEYS.filter(k => !displayGivenKeys.includes(k));
-
-          // Определяне на водния знак (само ако сме в режим изпит и е генериран)
-          const currentWatermark = (mode === 'exam' && examGenerated) ? `Клас ${studentClass.toUpperCase()} - № ${studentNumber}` : "";
-
           // ====================================================================================
           // НАЧАЛНА СТРАНИЦА (HOME) - ТУК СЪЩО СЕ АКТИВИРА УЧИТЕЛСКИЯТ РЕЖИМ
           // ====================================================================================
@@ -659,6 +654,9 @@
             );
           }
 
+          // ====================================================================================
+          // РЕЖИМ 2: ИНТЕРАКТИВЕН ИЗГЛЕД НА ПРИЛОЖЕНИЕТО
+          // ====================================================================================
           return (
             <div 
                 className="flex flex-col md:flex-row min-h-screen md:h-screen w-full bg-slate-50 text-slate-800 font-sans"
