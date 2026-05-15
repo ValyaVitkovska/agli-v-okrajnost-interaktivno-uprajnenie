@@ -165,7 +165,6 @@
             if (tPoint === 'A') { tPtObj = A; tAngle = angleA - 90; tNextPtObj = B; }
             else if (tPoint === 'B') { tPtObj = B; tAngle = angleB - 90; tNextPtObj = M; }
             else if (tPoint === 'M') { tPtObj = M; tAngle = angleM - 90; tNextPtObj = N; }
-            // Поправка: За да сочи правилно към A и ъгълът ANE да е остър, допирателната е на -90 (по часовника)
             else { tPtObj = N; tAngle = angleN - 90; tNextPtObj = A; } 
             
             const E_line_start = getPoint(tPtObj.x, tPtObj.y, R * 1.5, tAngle);
@@ -181,13 +180,13 @@
                     if (p === tPtObj) continue;
                     let dx = E.x - p.x;
                     let dy = E.y - p.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < R * 0.3) { // Намален радиус за по-прецизно плъзгане
+                    if (Math.sqrt(dx*dx + dy*dy) < R * 0.3) {
                         hasCollision = true;
                         break;
                     }
                 }
                 if(hasCollision) {
-                    eDist += R * 0.15; // По-малки стъпки за избутване
+                    eDist += R * 0.15; 
                     E = getPoint(tPtObj.x, tPtObj.y, eDist, tAngle);
                 } else {
                     break;
@@ -201,11 +200,21 @@
             else tPtAngle = angleN;
             
             const labelPositions = {};
-            const arcRadiusOffset = R * 1.25;
-            labelPositions.arcAB = getPoint(cx, cy, arcRadiusOffset, angleB + arcAB / 2);
-            labelPositions.arcBM = getPoint(cx, cy, arcRadiusOffset, angleB - arcBM / 2);
-            labelPositions.arcMN = getPoint(cx, cy, arcRadiusOffset, angleM - arcMN / 2);
-            labelPositions.arcAN = getPoint(cx, cy, arcRadiusOffset, angleA + arcAN / 2);
+            
+            // ДИНАМИЧЕН РАДИУС ЗА МЕРКИТЕ НА ДЪГИТЕ (За да са близо до окръжността, но да не застъпват точка К)
+            const getArcLabelRadius = (arcMidAngle) => {
+                const normArc = (arcMidAngle % 360 + 360) % 360;
+                const normK = (angleK % 360 + 360) % 360;
+                let diff = Math.abs(normArc - normK);
+                if (diff > 180) diff = 360 - diff;
+                // Ако етикетът се пада точно върху точка К (разлика < 10 градуса), го избутваме леко навън
+                return diff < 10 ? R * 1.38 : R * 1.14; 
+            };
+
+            labelPositions.arcAB = getPoint(cx, cy, getArcLabelRadius(angleB + arcAB / 2), angleB + arcAB / 2);
+            labelPositions.arcBM = getPoint(cx, cy, getArcLabelRadius(angleB - arcBM / 2), angleB - arcBM / 2);
+            labelPositions.arcMN = getPoint(cx, cy, getArcLabelRadius(angleM - arcMN / 2), angleM - arcMN / 2);
+            labelPositions.arcAN = getPoint(cx, cy, getArcLabelRadius(angleA + arcAN / 2), angleA + arcAN / 2);
             labelPositions.angleAOB = getPoint(cx, cy, R * 0.25, angleB + arcAB / 2);
 
             const getBisector = (center, p1, p2, dist) => {
@@ -247,6 +256,7 @@
             </div>
           );
 
+          // ИНТЕЛИГЕНТНО ИЗЧИСЛЯВАНЕ НА РАМКАТА ЗА ДА НЯМА ОТТРЯЗАНИ ТОЧКИ
           let minX = cx - R, maxX = cx + R, minY = cy - R, maxY = cy + R;
           const checkPt = (p) => {
             if (!p) return;
@@ -255,11 +265,21 @@
             if (p.y < minY) minY = p.y;
             if (p.y > maxY) maxY = p.y;
           };
-          [A, B, M, N, K, P, C, E, labelPositions.arcBM, labelPositions.arcAB, labelPositions.arcMN].forEach(checkPt); 
+          
+          // Добавяме към проверката буфери за етикетите, за да гарантираме, че винаги ще се виждат
+          [
+            A, B, M, N, K, P, C, E, 
+            labelPositions.arcBM, labelPositions.arcAB, labelPositions.arcMN, labelPositions.arcAN,
+            { x: K.x + Math.cos(degToRad(angleK)) * 40, y: K.y + Math.sin(degToRad(angleK)) * 40 }, // Зона около етикета на K
+            { x: E.x + Math.cos(degToRad(tAngle + 90)) * 40, y: E.y + Math.sin(degToRad(tAngle + 90)) * 40 }, // Зона около E
+            C ? { x: C.x, y: C.y - 40 } : null // Зона над C
+          ].forEach(checkPt); 
 
           const vbW = maxX - minX;
           const vbH = maxY - minY;
-          const padding = Math.max(vbW, vbH) * 0.12; 
+          // По-малко базово отстояние, защото вече сме включили етикетите в рамката (прави чертежа по-голям)
+          const padding = Math.max(vbW, vbH) * 0.05; 
+          
           const finalX = minX - padding;
           const finalY = minY - padding;
           const finalW = vbW + 2 * padding;
@@ -285,73 +305,87 @@
           else { kChordP1 = N; kP2 = A; } 
 
           return (
-            <svg viewBox={`${finalX} ${finalY} ${finalW} ${finalH}`} className="w-full h-auto max-h-[50vh] md:max-h-full" style={{ touchAction: "none", objectFit: "contain" }}>
-              <circle cx={O.x} cy={O.y} r={R} fill="none" stroke="#334155" strokeWidth={2.5 * scale} />
+            <svg viewBox={`${finalX} ${finalY} ${finalW} ${finalH}`} className="w-full h-auto max-h-[55vh] md:max-h-[85vh]" style={{ touchAction: "none", objectFit: "contain" }}>
+              {/* ПО-ПЛЪТНА ОКРЪЖНОСТ */}
+              <circle cx={O.x} cy={O.y} r={R} fill="none" stroke="#334155" strokeWidth={3.5 * scale} />
               
+              {/* ЪГЛИ - по-ясни и плътни */}
               {givenKeys.includes('angleAOB') && renderAngleMark(O, B, A, R*0.16, "#9CA3AF", 15)}
-              {givenKeys.includes('angleMAN') && renderAngleMark(A, M, N, R*0.33, "#3B82F6", 2.5)}
-              {givenKeys.includes('angleBAM') && renderAngleMark(A, B, M, R*0.33, "#3B82F6", 2.5)}
-              {givenKeys.includes('angleTangent') && renderAngleMark(tPtObj, E_line_start, tNextPtObj, R*0.33, "#F59E0B", 2.5)}
-              {givenKeys.includes('angleMPN') && renderAngleMark(P, M, N, R*0.25, "#EF4444", 2.5)}
-              {givenKeys.includes('angleACB') && renderAngleMark(C, A, B, R*0.25, "#EF4444", 2.5)}
-              {givenKeys.includes('angleHalfK') && renderAngleMark(O, K, kP2, R*0.25, "#8B5CF6", 2.5)}
+              {givenKeys.includes('angleMAN') && renderAngleMark(A, M, N, R*0.33, "#3B82F6", 3)}
+              {givenKeys.includes('angleBAM') && renderAngleMark(A, B, M, R*0.33, "#3B82F6", 3)}
+              {givenKeys.includes('angleTangent') && renderAngleMark(tPtObj, E_line_start, tNextPtObj, R*0.33, "#F59E0B", 3)}
+              {givenKeys.includes('angleMPN') && renderAngleMark(P, M, N, R*0.25, "#EF4444", 3)}
+              {givenKeys.includes('angleACB') && renderAngleMark(C, A, B, R*0.25, "#EF4444", 3)}
+              {givenKeys.includes('angleHalfK') && renderAngleMark(O, K, kP2, R*0.25, "#8B5CF6", 3)}
 
-              <line x1={O.x} y1={O.y} x2={A.x} y2={A.y} stroke="#cbd5e1" strokeWidth={1.5 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
-              <line x1={O.x} y1={O.y} x2={B.x} y2={B.y} stroke="#cbd5e1" strokeWidth={1.5 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
+              {/* ХОРДИ И ПУНКТИРИ - по-плътни */}
+              {/* Пунктири от центъра до A и B */}
+              <line x1={O.x} y1={O.y} x2={A.x} y2={A.y} stroke="#cbd5e1" strokeWidth={2 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
+              <line x1={O.x} y1={O.y} x2={B.x} y2={B.y} stroke="#cbd5e1" strokeWidth={2 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
               
-              <line x1={O.x} y1={O.y} x2={kChordP1.x} y2={kChordP1.y} stroke="#cbd5e1" strokeWidth={1.5 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
-              <line x1={O.x} y1={O.y} x2={kP2.x} y2={kP2.y} stroke="#cbd5e1" strokeWidth={1.5 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
+              {/* Пунктири до краищата на хордата, към която се спуска перпендикуляр (ако не са вече начертани) */}
+              <line x1={O.x} y1={O.y} x2={kChordP1.x} y2={kChordP1.y} stroke="#cbd5e1" strokeWidth={2 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
+              <line x1={O.x} y1={O.y} x2={kP2.x} y2={kP2.y} stroke="#cbd5e1" strokeWidth={2 * scale} strokeDasharray={`${6*scale},${6*scale}`} />
               
-              <line x1={O.x} y1={O.y} x2={K.x} y2={K.y} stroke="#94a3b8" strokeWidth={1.5 * scale} strokeDasharray={`${4*scale},${4*scale}`} />
+              {/* Перпендикулярът O-K */}
+              <line x1={O.x} y1={O.y} x2={K.x} y2={K.y} stroke="#94a3b8" strokeWidth={2 * scale} strokeDasharray={`${4*scale},${4*scale}`} />
               
-              {kChord !== 'AB' && <line x1={kChordP1.x} y1={kChordP1.y} x2={kP2.x} y2={kP2.y} stroke="#9ca3af" strokeWidth={1.5 * scale} strokeDasharray={`${4*scale},${4*scale}`} />}
+              {/* Пунктирана линия за самата хорда на перпендикуляра (ако не е някоя от плътните) */}
+              {kChord !== 'AB' && kChord !== 'MN' && <line x1={kChordP1.x} y1={kChordP1.y} x2={kP2.x} y2={kP2.y} stroke="#9ca3af" strokeWidth={2 * scale} strokeDasharray={`${4*scale},${4*scale}`} />}
               
+              {/* Основни външни линии при C */}
               {C && (
                 <React.Fragment>
-                  <line x1={A.x} y1={A.y} x2={C.x} y2={C.y} stroke="#475569" strokeWidth={1.5 * scale} />
-                  <line x1={B.x} y1={B.y} x2={C.x} y2={C.y} stroke="#475569" strokeWidth={1.5 * scale} />
+                  <line x1={A.x} y1={A.y} x2={C.x} y2={C.y} stroke="#475569" strokeWidth={2.5 * scale} />
+                  <line x1={B.x} y1={B.y} x2={C.x} y2={C.y} stroke="#475569" strokeWidth={2.5 * scale} />
                 </React.Fragment>
               )}
               
-              <line x1={A.x} y1={A.y} x2={M.x} y2={M.y} stroke="#475569" strokeWidth={1.5 * scale} />
-              <line x1={B.x} y1={B.y} x2={N.x} y2={N.y} stroke="#475569" strokeWidth={1.5 * scale} />
-              <line x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke="#475569" strokeWidth={1.5 * scale} />
+              {/* Основни хорди */}
+              <line x1={A.x} y1={A.y} x2={M.x} y2={M.y} stroke="#475569" strokeWidth={2.5 * scale} />
+              <line x1={B.x} y1={B.y} x2={N.x} y2={N.y} stroke="#475569" strokeWidth={2.5 * scale} />
+              <line x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke="#475569" strokeWidth={2.5 * scale} />
+              <line x1={M.x} y1={M.y} x2={N.x} y2={N.y} stroke="#475569" strokeWidth={2.5 * scale} /> {/* Свързване на M и N */}
               
-              <line x1={E_line_start.x} y1={E_line_start.y} x2={E_line_end.x} y2={E_line_end.y} stroke="#334155" strokeWidth={2.5 * scale} strokeLinecap="round" />
+              {/* Допирателна */}
+              <line x1={E_line_start.x} y1={E_line_start.y} x2={E_line_end.x} y2={E_line_end.y} stroke="#334155" strokeWidth={3.5 * scale} strokeLinecap="round" />
 
+              {/* ТОЧКИ И БУКВИ - уголемени и изнесени радиално навън */}
               {[
-                { p: O, label: "O", ox: 0, oy: 22 }, 
-                { p: A, label: "A", ox: Math.cos(degToRad(angleA)) * 22, oy: Math.sin(degToRad(angleA)) * 22 }, 
-                { p: B, label: "B", ox: Math.cos(degToRad(angleB)) * 22, oy: Math.sin(degToRad(angleB)) * 22 },
-                { p: M, label: "M", ox: Math.cos(degToRad(angleM)) * 22, oy: Math.sin(degToRad(angleM)) * 22 }, 
-                { p: N, label: "N", ox: Math.cos(degToRad(angleN)) * 22, oy: Math.sin(degToRad(angleN)) * 22 }, 
-                { p: K, label: "K", ox: Math.cos(degToRad(angleK)) * 22, oy: Math.sin(degToRad(angleK)) * 22 }, 
-                { p: P, label: "P", ox: 0, oy: -18 }, 
-                { p: C, label: "C", ox: 0, oy: -22 }, 
-                { p: E, label: "E", ox: Math.cos(degToRad(tAngle + 90)) * 18, oy: Math.sin(degToRad(tAngle + 90)) * 18 } // E динамично изнесено
+                { p: O, label: "O", ox: 0, oy: 26 }, 
+                { p: A, label: "A", ox: Math.cos(degToRad(angleA)) * 26, oy: Math.sin(degToRad(angleA)) * 26 }, 
+                { p: B, label: "B", ox: Math.cos(degToRad(angleB)) * 26, oy: Math.sin(degToRad(angleB)) * 26 },
+                { p: M, label: "M", ox: Math.cos(degToRad(angleM)) * 26, oy: Math.sin(degToRad(angleM)) * 26 }, 
+                { p: N, label: "N", ox: Math.cos(degToRad(angleN)) * 26, oy: Math.sin(degToRad(angleN)) * 26 }, 
+                { p: K, label: "K", ox: Math.cos(degToRad(angleK)) * 26, oy: Math.sin(degToRad(angleK)) * 26 }, 
+                { p: P, label: "P", ox: 0, oy: -22 }, 
+                { p: C, label: "C", ox: 0, oy: -26 }, 
+                { p: E, label: "E", ox: Math.cos(degToRad(tAngle + 90)) * 22, oy: Math.sin(degToRad(tAngle + 90)) * 22 } 
               ].map((pt, i) => pt.p && (
                 <g key={i}>
-                  <circle cx={pt.p.x} cy={pt.p.y} r={3.5 * scale} fill="#3B82F6" stroke="#ffffff" strokeWidth={1.5 * scale} />
-                  <text x={pt.p.x + pt.ox * scale} y={pt.p.y + pt.oy * scale} fontSize={17 * scale} fontFamily="serif" fontStyle="italic" fontWeight="bold" fill="white" stroke="white" strokeWidth={4 * scale} strokeLinejoin="round" textAnchor="middle" dominantBaseline="middle">{pt.label}</text>
-                  <text x={pt.p.x + pt.ox * scale} y={pt.p.y + pt.oy * scale} fontSize={17 * scale} fontFamily="serif" fontStyle="italic" fontWeight="bold" fill="#1e293b" textAnchor="middle" dominantBaseline="middle">{pt.label}</text>
+                  <circle cx={pt.p.x} cy={pt.p.y} r={4.5 * scale} fill="#3B82F6" stroke="#ffffff" strokeWidth={2 * scale} />
+                  <text x={pt.p.x + pt.ox * scale} y={pt.p.y + pt.oy * scale} fontSize={20 * scale} fontFamily="serif" fontStyle="italic" fontWeight="bold" fill="white" stroke="white" strokeWidth={5 * scale} strokeLinejoin="round" textAnchor="middle" dominantBaseline="middle">{pt.label}</text>
+                  <text x={pt.p.x + pt.ox * scale} y={pt.p.y + pt.oy * scale} fontSize={20 * scale} fontFamily="serif" fontStyle="italic" fontWeight="bold" fill="#1e293b" textAnchor="middle" dominantBaseline="middle">{pt.label}</text>
                 </g>
               ))}
 
+              {/* СТОЙНОСТИ НА ЪГЛИТЕ */}
               {givenKeys.map(key => {
                 const pos = labelPositions[key];
                 if (!pos) return null;
                 return (
                   <g key={key}>
-                    <text x={pos.x} y={pos.y} fontSize={15 * scale} fill="white" fontWeight="900" stroke="white" strokeWidth={5 * scale} strokeLinejoin="round" textAnchor="middle" dominantBaseline="middle">{vals[key]}°</text>
-                    <text x={pos.x} y={pos.y} fontSize={15 * scale} fill="#ea580c" fontWeight="900" textAnchor="middle" dominantBaseline="middle">{vals[key]}°</text>
+                    <text x={pos.x} y={pos.y} fontSize={17 * scale} fill="white" fontWeight="900" stroke="white" strokeWidth={5 * scale} strokeLinejoin="round" textAnchor="middle" dominantBaseline="middle">{vals[key]}°</text>
+                    <text x={pos.x} y={pos.y} fontSize={17 * scale} fill="#ea580c" fontWeight="900" textAnchor="middle" dominantBaseline="middle">{vals[key]}°</text>
                   </g>
                 );
               })}
 
+              {/* ВОДЕН ЗНАК */}
               {examWatermark && (
                 <text 
                   x={cx} y={cy} 
-                  fontSize={40 * scale} 
+                  fontSize={50 * scale} 
                   fill="#94a3b8" 
                   opacity="0.2" 
                   transform={`rotate(-25 ${cx} ${cy})`} 
@@ -1059,13 +1093,13 @@
                 )}
               </div>
 
-              <div className={`hidden md:flex w-full md:w-[55%] lg:w-[62%] items-center justify-center p-6 lg:p-8 bg-slate-100 overflow-hidden relative border-l border-slate-200 ${mode === 'exam' ? 'no-select' : ''}`}>
+              <div className={`hidden md:flex w-full md:w-[55%] lg:w-[62%] items-center justify-center p-2 lg:p-4 bg-slate-100 overflow-hidden relative border-l border-slate-200 ${mode === 'exam' ? 'no-select' : ''}`}>
                 {(!isPossible && mode !== 'exam') || (mode === 'exam' && !examGenerated) ? (
                   <div className="w-full h-full max-w-4xl bg-white/50 border-4 border-dashed border-slate-300 rounded-[2rem] flex items-center justify-center text-slate-400 font-bold text-xl">
                     Чертежът ще се появи тук
                   </div>
                 ) : (
-                  <div className="w-full h-full max-w-4xl bg-white shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] rounded-[2rem] overflow-hidden p-6 lg:p-8 flex items-center justify-center relative border border-slate-200/60">
+                  <div className="w-full h-full max-w-4xl bg-white shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] rounded-[2rem] overflow-hidden p-4 lg:p-6 flex items-center justify-center relative border border-slate-200/60">
                      <GeometryDrawing baseAngle={baseAngle} arcAB={arcAB} arcBM={arcBM} angleMAN={angleMAN} kChord={kChord} tPoint={tPoint} givenKeys={displayGivenKeys} vals={correctAnswers} examWatermark={currentWatermark} />
                   </div>
                 )}
