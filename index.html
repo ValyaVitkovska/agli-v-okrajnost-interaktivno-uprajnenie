@@ -88,18 +88,25 @@
         const LABEL_MAP = {
           arcAB: <Arc>AB</Arc>, arcBM: <Arc>BM</Arc>, arcMN: <Arc>MN</Arc>, arcAN: <Arc>AN</Arc>,
           angleAOB: <Ang>AOB</Ang>, angleMAN: <Ang>MAN</Ang>, angleBAM: <Ang>BAM</Ang>,
-          angleMBE: <Ang>MBE</Ang>, angleMPN: <Ang>MPN</Ang>, angleACB: <Ang>ACB</Ang>, 
-          angleHalfK: <Ang>K</Ang>
+          angleMPN: <Ang>MPN</Ang>, angleACB: <Ang>ACB</Ang>, 
+          angleHalfK: <Ang>K</Ang>, angleTangent: <Ang>E</Ang>
         };
 
-        const ALL_KEYS = ['arcAB', 'arcBM', 'arcMN', 'arcAN', 'angleAOB', 'angleMAN', 'angleBAM', 'angleMBE', 'angleMPN', 'angleACB', 'angleHalfK'];
+        const ALL_KEYS = ['arcAB', 'arcBM', 'arcMN', 'arcAN', 'angleAOB', 'angleMAN', 'angleBAM', 'angleTangent', 'angleMPN', 'angleACB', 'angleHalfK'];
 
-        const renderLabel = (key, kChord) => {
+        const renderLabel = (key, kChord, tPoint) => {
             if (key === 'angleHalfK') {
                 if (kChord === 'AB') return <Ang>KOA</Ang>;
                 if (kChord === 'BM') return <Ang>KOB</Ang>;
                 if (kChord === 'MN') return <Ang>KOM</Ang>;
                 return <Ang>KOA</Ang>; 
+            }
+            if (key === 'angleTangent') {
+                if (tPoint === 'A') return <Ang>BAE</Ang>;
+                if (tPoint === 'B') return <Ang>MBE</Ang>;
+                if (tPoint === 'M') return <Ang>NME</Ang>;
+                if (tPoint === 'N') return <Ang>ANE</Ang>;
+                return <Ang>MBE</Ang>;
             }
             return LABEL_MAP[key] || <span>{key}</span>;
         };
@@ -108,25 +115,23 @@
             const baseTemplates = [
               ['angleMAN', 'arcBM', 'angleAOB'],
               ['arcMN', 'angleBAM', 'arcAB'],
-              ['angleMPN', 'angleMBE', 'arcAB']
+              ['angleMPN', 'angleTangent', 'arcAB']
             ];
             let kTemplates = [];
             if (kChord === 'AN') {
-               kTemplates.push(['angleHalfK', 'arcBM', 'angleAOB'], ['angleHalfK', 'arcMN', 'angleMBE']); 
+               kTemplates.push(['angleHalfK', 'arcBM', 'angleAOB'], ['angleHalfK', 'arcMN', 'angleTangent']); 
             } else if (kChord === 'AB') {
-               kTemplates.push(['angleHalfK', 'arcBM', 'angleMAN'], ['angleHalfK', 'arcMN', 'angleMBE']); 
+               kTemplates.push(['angleHalfK', 'arcBM', 'angleMAN'], ['angleHalfK', 'arcMN', 'angleTangent']); 
             } else if (kChord === 'BM') {
                kTemplates.push(['angleHalfK', 'angleAOB', 'angleMAN'], ['angleHalfK', 'arcMN', 'arcAB']); 
             } else if (kChord === 'MN') {
-               kTemplates.push(['angleHalfK', 'arcBM', 'angleAOB'], ['angleHalfK', 'angleMBE', 'arcAB']); 
+               kTemplates.push(['angleHalfK', 'arcBM', 'angleAOB'], ['angleHalfK', 'angleTangent', 'arcAB']); 
             }
             return [...baseTemplates, ...kTemplates];
         };
 
-        const GIVEN_TEMPLATES = getTemplatesForKChord('AN'); 
-
         // --- ДИНАМИЧЕН ЧЕРТЕЖ ---
-        const GeometryDrawing = ({ baseAngle, arcAB, arcBM, angleMAN, kChord = 'AN', size = 600, givenKeys = [], vals = {}, examWatermark = "" }) => {
+        const GeometryDrawing = ({ baseAngle, arcAB, arcBM, angleMAN, kChord = 'AN', tPoint = 'B', size = 600, givenKeys = [], vals = {}, examWatermark = "" }) => {
           const cx = size / 2;
           const cy = size / 2;
           const R = size * 0.25;
@@ -151,25 +156,56 @@
             else angleK = angleA + arcAN / 2; 
             
             const K = getPoint(cx, cy, R, angleK);
-            
             const O = { x: cx, y: cy };
             const P = getIntersection(A, M, B, N);
             const C = getIntersection(A, N, B, M);
-            const angleE1 = angleB - 90;
-            const angleE2 = angleB + 90;
-            const E_line_start = getPoint(B.x, B.y, R * 1.5, angleE1);
-            const E_line_end = getPoint(B.x, B.y, R * 1.5, angleE2);
-            const E = getPoint(B.x, B.y, R * 0.5, angleE1);
+            
+            // ДИНАМИЧНА ДОПИРАТЕЛНА
+            let tPtObj, tAngle, tNextPtObj;
+            if (tPoint === 'A') { tPtObj = A; tAngle = angleA - 90; tNextPtObj = B; }
+            else if (tPoint === 'B') { tPtObj = B; tAngle = angleB - 90; tNextPtObj = M; }
+            else if (tPoint === 'M') { tPtObj = M; tAngle = angleM - 90; tNextPtObj = N; }
+            // Поправка: За да сочи правилно към A и ъгълът ANE да е остър, допирателната е на -90 (по часовника)
+            else { tPtObj = N; tAngle = angleN - 90; tNextPtObj = A; } 
+            
+            const E_line_start = getPoint(tPtObj.x, tPtObj.y, R * 1.5, tAngle);
+            const E_line_end = getPoint(tPtObj.x, tPtObj.y, R * 1.5, tAngle + 180);
+            
+            // --- ПРЕЦИЗИРАНА АНТИ-КОЛИЗИЯ ЗА ТОЧКА E ---
+            let eDist = R * 0.55;
+            let E = getPoint(tPtObj.x, tPtObj.y, eDist, tAngle);
+            const ptsToCheckForE = [A, B, M, N, K, P, C, O].filter(p => p !== null);
+            for(let step = 0; step < 12; step++) {
+                let hasCollision = false;
+                for(let p of ptsToCheckForE) {
+                    if (p === tPtObj) continue;
+                    let dx = E.x - p.x;
+                    let dy = E.y - p.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < R * 0.3) { // Намален радиус за по-прецизно плъзгане
+                        hasCollision = true;
+                        break;
+                    }
+                }
+                if(hasCollision) {
+                    eDist += R * 0.15; // По-малки стъпки за избутване
+                    E = getPoint(tPtObj.x, tPtObj.y, eDist, tAngle);
+                } else {
+                    break;
+                }
+            }
+
+            let tPtAngle;
+            if (tPoint === 'A') tPtAngle = angleA;
+            else if (tPoint === 'B') tPtAngle = angleB;
+            else if (tPoint === 'M') tPtAngle = angleM;
+            else tPtAngle = angleN;
             
             const labelPositions = {};
-            
-            // ПРЕЦИЗИРАНЕ: Избутване на етикетите за дъгите по-навън (R * 1.25)
             const arcRadiusOffset = R * 1.25;
             labelPositions.arcAB = getPoint(cx, cy, arcRadiusOffset, angleB + arcAB / 2);
             labelPositions.arcBM = getPoint(cx, cy, arcRadiusOffset, angleB - arcBM / 2);
             labelPositions.arcMN = getPoint(cx, cy, arcRadiusOffset, angleM - arcMN / 2);
             labelPositions.arcAN = getPoint(cx, cy, arcRadiusOffset, angleA + arcAN / 2);
-            
             labelPositions.angleAOB = getPoint(cx, cy, R * 0.25, angleB + arcAB / 2);
 
             const getBisector = (center, p1, p2, dist) => {
@@ -192,14 +228,14 @@
             labelPositions.angleHalfK = getBisector(O, K, kP2, R * 0.35);
             labelPositions.angleMAN = getBisector(A, N, M, R * 0.45);
             labelPositions.angleBAM = getBisector(A, M, B, R * 0.45);
-            labelPositions.angleMBE = getBisector(B, E_line_start, M, R * 0.45);
+            labelPositions.angleTangent = getBisector(tPtObj, E_line_start, tNextPtObj, R * 0.45);
             labelPositions.angleMPN = getBisector(P, N, M, R * 0.4);
             labelPositions.angleACB = getBisector(C, A, B, R * 0.4);
 
-            return { O, A, B, M, N, K, P, C, E_line_start, E_line_end, E, labelPositions, angleK };
-          }, [baseAngle, arcAB, arcBM, angleMAN, kChord, cx, cy, R]);
+            return { O, A, B, M, N, K, P, C, E_line_start, E_line_end, E, tPtObj, tNextPtObj, tAngle, tPtAngle, labelPositions, angleK, angleA, angleB, angleM, angleN };
+          }, [baseAngle, arcAB, arcBM, angleMAN, kChord, tPoint, cx, cy, R]);
 
-          const { O, A, B, M, N, K, P, C, E_line_start, E_line_end, E, labelPositions, angleK } = points;
+          const { O, A, B, M, N, K, P, C, E_line_start, E_line_end, E, tPtObj, tNextPtObj, tAngle, tPtAngle, labelPositions, angleK, angleA, angleB, angleM, angleN } = points;
           const isPossible = arcAB + arcBM + (angleMAN * 2) < 360;
 
           if (!isPossible) return (
@@ -219,7 +255,7 @@
             if (p.y < minY) minY = p.y;
             if (p.y > maxY) maxY = p.y;
           };
-          [A, B, M, N, K, P, C, labelPositions.arcBM, labelPositions.arcAB, labelPositions.arcMN].forEach(checkPt); 
+          [A, B, M, N, K, P, C, E, labelPositions.arcBM, labelPositions.arcAB, labelPositions.arcMN].forEach(checkPt); 
 
           const vbW = maxX - minX;
           const vbH = maxY - minY;
@@ -255,7 +291,7 @@
               {givenKeys.includes('angleAOB') && renderAngleMark(O, B, A, R*0.16, "#9CA3AF", 15)}
               {givenKeys.includes('angleMAN') && renderAngleMark(A, M, N, R*0.33, "#3B82F6", 2.5)}
               {givenKeys.includes('angleBAM') && renderAngleMark(A, B, M, R*0.33, "#3B82F6", 2.5)}
-              {givenKeys.includes('angleMBE') && renderAngleMark(B, E_line_start, M, R*0.33, "#F59E0B", 2.5)}
+              {givenKeys.includes('angleTangent') && renderAngleMark(tPtObj, E_line_start, tNextPtObj, R*0.33, "#F59E0B", 2.5)}
               {givenKeys.includes('angleMPN') && renderAngleMark(P, M, N, R*0.25, "#EF4444", 2.5)}
               {givenKeys.includes('angleACB') && renderAngleMark(C, A, B, R*0.25, "#EF4444", 2.5)}
               {givenKeys.includes('angleHalfK') && renderAngleMark(O, K, kP2, R*0.25, "#8B5CF6", 2.5)}
@@ -283,12 +319,16 @@
               
               <line x1={E_line_start.x} y1={E_line_start.y} x2={E_line_end.x} y2={E_line_end.y} stroke="#334155" strokeWidth={2.5 * scale} strokeLinecap="round" />
 
-              {/* ПРЕЦИЗИРАНЕ: Бял ореол около текста на точките за четимост */}
               {[
-                { p: O, label: "O", ox: 0, oy: 22 }, { p: A, label: "A", ox: -16, oy: 16 }, { p: B, label: "B", ox: 16, oy: 16 },
-                { p: M, label: "M", ox: 16, oy: -16 }, { p: N, label: "N", ox: -16, oy: -16 }, 
+                { p: O, label: "O", ox: 0, oy: 22 }, 
+                { p: A, label: "A", ox: Math.cos(degToRad(angleA)) * 22, oy: Math.sin(degToRad(angleA)) * 22 }, 
+                { p: B, label: "B", ox: Math.cos(degToRad(angleB)) * 22, oy: Math.sin(degToRad(angleB)) * 22 },
+                { p: M, label: "M", ox: Math.cos(degToRad(angleM)) * 22, oy: Math.sin(degToRad(angleM)) * 22 }, 
+                { p: N, label: "N", ox: Math.cos(degToRad(angleN)) * 22, oy: Math.sin(degToRad(angleN)) * 22 }, 
                 { p: K, label: "K", ox: Math.cos(degToRad(angleK)) * 22, oy: Math.sin(degToRad(angleK)) * 22 }, 
-                { p: P, label: "P", ox: 0, oy: -18 }, { p: C, label: "C", ox: 0, oy: -22 }, { p: E, label: "E", ox: 16, oy: -16 }
+                { p: P, label: "P", ox: 0, oy: -18 }, 
+                { p: C, label: "C", ox: 0, oy: -22 }, 
+                { p: E, label: "E", ox: Math.cos(degToRad(tAngle + 90)) * 18, oy: Math.sin(degToRad(tAngle + 90)) * 18 } // E динамично изнесено
               ].map((pt, i) => pt.p && (
                 <g key={i}>
                   <circle cx={pt.p.x} cy={pt.p.y} r={3.5 * scale} fill="#3B82F6" stroke="#ffffff" strokeWidth={1.5 * scale} />
@@ -297,7 +337,6 @@
                 </g>
               ))}
 
-              {/* ПРЕЦИЗИРАНЕ: Бял ореол около стойностите */}
               {givenKeys.map(key => {
                 const pos = labelPositions[key];
                 if (!pos) return null;
@@ -334,7 +373,9 @@
           const [arcAB, setArcAB] = useState(120);
           const [arcBM, setArcBM] = useState(120);
           const [angleMAN, setAngleMAN] = useState(20);
-          const [kChord, setKChord] = useState('AB'); 
+          const [kChord, setKChord] = useState('AN'); 
+          const [tPoint, setTPoint] = useState('B'); 
+          
           const [mode, setMode] = useState('learn'); 
           const [userAnswers, setUserAnswers] = useState({});
           
@@ -351,7 +392,7 @@
           const [teacherKeyClass, setTeacherKeyClass] = useState('B');
 
           const [variants, setVariants] = useState([]);
-          const [interactiveGivenKeys, setInteractiveGivenKeys] = useState(GIVEN_TEMPLATES[0]);
+          const [interactiveGivenKeys, setInteractiveGivenKeys] = useState(getTemplatesForKChord('AN')[0]);
 
           const getVariantByNumber = (num, cls = 'B') => {
             let classOffset = cls ? cls.toUpperCase().charCodeAt(0) * 137 : 0;
@@ -372,17 +413,26 @@
 
             const CHORDS = ['AN', 'AB', 'BM', 'MN'];
             const randChord = CHORDS[Math.floor(rand() * 4)];
+            
+            const T_POINTS = ['A', 'B', 'M', 'N'];
+            const randTPoint = T_POINTS[Math.floor(rand() * 4)];
 
             let arcKFullVal;
             if (randChord === 'AB') arcKFullVal = v_arcAB;
             else if (randChord === 'BM') arcKFullVal = v_arcBM;
             else if (randChord === 'MN') arcKFullVal = arcMN;
             else arcKFullVal = arcAN;
+            
+            let arcTangentFullVal;
+            if (randTPoint === 'A') arcTangentFullVal = v_arcAB;
+            else if (randTPoint === 'B') arcTangentFullVal = v_arcBM;
+            else if (randTPoint === 'M') arcTangentFullVal = arcMN;
+            else arcTangentFullVal = arcAN;
 
             const vals = {
               arcAB: v_arcAB, arcBM: v_arcBM, arcMN: arcMN, arcAN: arcAN,
               angleAOB: v_arcAB, angleMAN: v_angleMAN, angleBAM: v_arcBM / 2,
-              angleMBE: v_arcBM / 2, angleMPN: (v_arcAB + arcMN) / 2,
+              angleTangent: arcTangentFullVal / 2, angleMPN: (v_arcAB + arcMN) / 2,
               angleACB: Math.abs(v_arcAB - arcMN) / 2, angleHalfK: arcKFullVal / 2
             };
 
@@ -391,7 +441,7 @@
             const givenKeys = templates[tmplIndex];
             const soughtKeys = ALL_KEYS.filter(k => !givenKeys.includes(k));
 
-            return { id: num, arcAB: v_arcAB, arcBM: v_arcBM, angleMAN: v_angleMAN, kChord: randChord, givenKeys, soughtKeys, vals };
+            return { id: num, arcAB: v_arcAB, arcBM: v_arcBM, angleMAN: v_angleMAN, kChord: randChord, tPoint: randTPoint, givenKeys, soughtKeys, vals };
           };
 
           useEffect(() => {
@@ -412,14 +462,20 @@
             else if (kChord === 'BM') arcKFullVal = arcBM;
             else if (kChord === 'MN') arcKFullVal = arcMN;
             else arcKFullVal = arcAN;
+            
+            let arcTangentFullVal;
+            if (tPoint === 'A') arcTangentFullVal = arcAB;
+            else if (tPoint === 'B') arcTangentFullVal = arcBM;
+            else if (tPoint === 'M') arcTangentFullVal = arcMN;
+            else arcTangentFullVal = arcAN;
 
             return {
               arcAB, arcBM, arcMN, arcAN, 
               angleAOB: arcAB, angleMAN, angleBAM: arcBM / 2, 
-              angleMBE: arcBM / 2, angleMPN: (arcAB + arcMN) / 2, 
+              angleTangent: arcTangentFullVal / 2, angleMPN: (arcAB + arcMN) / 2, 
               angleACB: Math.abs(arcAB - arcMN) / 2, angleHalfK: arcKFullVal / 2
             };
-          }, [arcAB, arcBM, angleMAN, kChord]);
+          }, [arcAB, arcBM, angleMAN, kChord, tPoint]);
 
           const isPossible = arcAB + arcBM + (angleMAN * 2) < 360;
 
@@ -440,6 +496,10 @@
             
             const newKChord = ['AN', 'AB', 'BM', 'MN'][Math.floor(Math.random() * 4)];
             setKChord(newKChord);
+            
+            const newTPoint = ['A', 'B', 'M', 'N'][Math.floor(Math.random() * 4)];
+            setTPoint(newTPoint);
+            
             const templates = getTemplatesForKChord(newKChord);
             setInteractiveGivenKeys(templates[Math.floor(Math.random() * templates.length)]);
             
@@ -465,16 +525,24 @@
                 if (Math.abs(v_arcAB - arcMN) < 30) continue;
   
                 const randChord = ['AN', 'AB', 'BM', 'MN'][Math.floor(Math.random() * 4)];
+                const randTPoint = ['A', 'B', 'M', 'N'][Math.floor(Math.random() * 4)];
+                
                 let arcKFullVal;
                 if (randChord === 'AB') arcKFullVal = v_arcAB;
                 else if (randChord === 'BM') arcKFullVal = v_arcBM;
                 else if (randChord === 'MN') arcKFullVal = arcMN;
                 else arcKFullVal = arcAN;
+                
+                let arcTangentFullVal;
+                if (randTPoint === 'A') arcTangentFullVal = v_arcAB;
+                else if (randTPoint === 'B') arcTangentFullVal = v_arcBM;
+                else if (randTPoint === 'M') arcTangentFullVal = arcMN;
+                else arcTangentFullVal = arcAN;
 
                 const vals = {
                   arcAB: v_arcAB, arcBM: v_arcBM, arcMN: arcMN, arcAN: arcAN,
                   angleAOB: v_arcAB, angleMAN: v_angleMAN, angleBAM: v_arcBM / 2,
-                  angleMBE: v_arcBM / 2, angleMPN: (v_arcAB + arcMN) / 2,
+                  angleTangent: arcTangentFullVal / 2, angleMPN: (v_arcAB + arcMN) / 2,
                   angleACB: Math.abs(v_arcAB - arcMN) / 2, angleHalfK: arcKFullVal / 2
                 };
   
@@ -482,7 +550,7 @@
                 const givenKeys = templates[Math.floor(Math.random() * templates.length)];
                 const soughtKeys = ALL_KEYS.filter(k => !givenKeys.includes(k));
   
-                newVariants.push({ id: newVariants.length + 1, arcAB: v_arcAB, arcBM: v_arcBM, angleMAN: v_angleMAN, kChord: randChord, givenKeys, soughtKeys, vals });
+                newVariants.push({ id: newVariants.length + 1, arcAB: v_arcAB, arcBM: v_arcBM, angleMAN: v_angleMAN, kChord: randChord, tPoint: randTPoint, givenKeys, soughtKeys, vals });
               }
   
               setVariants(newVariants);
@@ -508,6 +576,7 @@
             setArcBM(variant.arcBM);
             setAngleMAN(variant.angleMAN);
             setKChord(variant.kChord);
+            setTPoint(variant.tPoint);
             setInteractiveGivenKeys(variant.givenKeys);
             setExamGenerated(true);
             clearAnswers();
@@ -532,7 +601,7 @@
           const currentWatermark = (mode === 'exam' && examGenerated) ? `Клас ${studentClass.toUpperCase()} - № ${studentNumber}` : "";
 
           // ====================================================================================
-          // РЕЖИМ 1: ИЗГЛЕД ЗА ПЕЧАТ (С ДВАТА ВАРИАНТА - КЛЮЧ ИЛИ 17 ВАРИАНТА)
+          // РЕЖИМ 1: ИЗГЛЕД ЗА ПЕЧАТ
           // ====================================================================================
           if (isPrintPreview) {
             return (
@@ -563,7 +632,7 @@
                       <thead>
                         <tr>
                           <th style={{ border: '1px solid #000', padding: '6px', backgroundColor: '#f3f4f6', textAlign: 'center' }}>Номер</th>
-                          {ALL_KEYS.map(k => <th key={k} style={{ border: '1px solid #000', padding: '6px', backgroundColor: '#f3f4f6', textAlign: 'center' }}>{k === 'angleHalfK' ? <Ang>K...</Ang> : LABEL_MAP[k]}</th>)}
+                          {ALL_KEYS.map(k => <th key={k} style={{ border: '1px solid #000', padding: '6px', backgroundColor: '#f3f4f6', textAlign: 'center' }}>{k === 'angleHalfK' ? <Ang>K...</Ang> : k === 'angleTangent' ? <Ang>E...</Ang> : LABEL_MAP[k]}</th>)}
                         </tr>
                       </thead>
                       <tbody>
@@ -575,6 +644,8 @@
                               let subLabel = null;
                               if (k === 'angleHalfK') {
                                   subLabel = v.kChord === 'AB' ? 'KOA' : v.kChord === 'BM' ? 'KOB' : v.kChord === 'MN' ? 'KOM' : 'KOA';
+                              } else if (k === 'angleTangent') {
+                                  subLabel = v.tPoint === 'A' ? 'BAE' : v.tPoint === 'B' ? 'MBE' : v.tPoint === 'M' ? 'NME' : 'ANE';
                               }
                               return (
                                 <td key={k} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', backgroundColor: isGiven ? '#e2e8f0' : 'transparent', fontWeight: isGiven ? 'bold' : 'normal' }}>
@@ -601,35 +672,35 @@
                           <div style={{ clear: 'both' }}></div>
                         </div>
                         <div style={{ fontSize: '18px', color: 'black', marginBottom: '15px', lineHeight: '1.5', fontFamily: '"Times New Roman", Times, serif' }}>
-                          На чертежа точките <i>A, B, M, N</i> и <i>K</i> лежат на окръжност с център <i>O</i>. Правата <i>BE</i> е допирателна към окръжността, а отсечката <i>KO</i> е перпендикулярна на хордата <i>{v.kChord}</i>.
+                          На чертежа точките <i>A, B, M, N</i> и <i>K</i> лежат на окръжност с център <i>O</i>. Правата <i>{v.tPoint}E</i> е допирателна към окръжността, а отсечката <i>KO</i> е перпендикулярна на хордата <i>{v.kChord}</i>.
                         </div>
                         <div style={{ fontSize: '18px', color: 'black', fontWeight: 'bold', border: '1px dashed #000', padding: '12px', marginBottom: '25px', fontFamily: 'Arial, sans-serif' }}>
-                          Дадено: {v.givenKeys.map((key, i) => <span key={key}>{renderLabel(key, v.kChord)} = {v.vals[key]}°{i < v.givenKeys.length - 1 ? ', ' : ''}</span>)}.<br/>
+                          Дадено: {v.givenKeys.map((key, i) => <span key={key}>{renderLabel(key, v.kChord, v.tPoint)} = {v.vals[key]}°{i < v.givenKeys.length - 1 ? ', ' : ''}</span>)}.<br/>
                           Намерете:
                         </div>
                         <table style={{ width: '100%', fontSize: '18px', color: 'black', fontWeight: 'bold', marginBottom: '30px', fontFamily: 'Arial, sans-serif' }}>
                           <tbody>
                             <tr>
-                              <td style={{ paddingBottom: '15px' }}>а) {renderLabel(v.soughtKeys[0], v.kChord)} = ........</td>
-                              <td style={{ paddingBottom: '15px' }}>б) {renderLabel(v.soughtKeys[1], v.kChord)} = ........</td>
+                              <td style={{ paddingBottom: '15px' }}>а) {renderLabel(v.soughtKeys[0], v.kChord, v.tPoint)} = ........</td>
+                              <td style={{ paddingBottom: '15px' }}>б) {renderLabel(v.soughtKeys[1], v.kChord, v.tPoint)} = ........</td>
                             </tr>
                             <tr>
-                              <td style={{ paddingBottom: '15px' }}>в) {renderLabel(v.soughtKeys[2], v.kChord)} = ........</td>
-                              <td style={{ paddingBottom: '15px' }}>г) {renderLabel(v.soughtKeys[3], v.kChord)} = ........</td>
+                              <td style={{ paddingBottom: '15px' }}>в) {renderLabel(v.soughtKeys[2], v.kChord, v.tPoint)} = ........</td>
+                              <td style={{ paddingBottom: '15px' }}>г) {renderLabel(v.soughtKeys[3], v.kChord, v.tPoint)} = ........</td>
                             </tr>
                             <tr>
-                              <td style={{ paddingBottom: '15px' }}>д) {renderLabel(v.soughtKeys[4], v.kChord)} = ........</td>
-                              <td style={{ paddingBottom: '15px' }}>е) {renderLabel(v.soughtKeys[5], v.kChord)} = ........</td>
+                              <td style={{ paddingBottom: '15px' }}>д) {renderLabel(v.soughtKeys[4], v.kChord, v.tPoint)} = ........</td>
+                              <td style={{ paddingBottom: '15px' }}>е) {renderLabel(v.soughtKeys[5], v.kChord, v.tPoint)} = ........</td>
                             </tr>
                             <tr>
-                              <td style={{ paddingBottom: '15px' }}>ж) {renderLabel(v.soughtKeys[6], v.kChord)} = ........</td>
-                              <td style={{ paddingBottom: '15px' }}>з) {renderLabel(v.soughtKeys[7], v.kChord)} = ........</td>
+                              <td style={{ paddingBottom: '15px' }}>ж) {renderLabel(v.soughtKeys[6], v.kChord, v.tPoint)} = ........</td>
+                              <td style={{ paddingBottom: '15px' }}>з) {renderLabel(v.soughtKeys[7], v.kChord, v.tPoint)} = ........</td>
                             </tr>
                           </tbody>
                         </table>
                         <div style={{ textAlign: 'center', marginTop: '10px' }}>
                           <div style={{ display: 'inline-block', width: '100%', maxWidth: '600px' }}>
-                            <GeometryDrawing baseAngle={20} arcAB={v.arcAB} arcBM={v.arcBM} angleMAN={v.angleMAN} kChord={v.kChord} givenKeys={v.givenKeys} vals={v.vals} />
+                            <GeometryDrawing baseAngle={20} arcAB={v.arcAB} arcBM={v.arcBM} angleMAN={v.angleMAN} kChord={v.kChord} tPoint={v.tPoint} givenKeys={v.givenKeys} vals={v.vals} />
                           </div>
                         </div>
                       </div>
@@ -640,7 +711,7 @@
                         <thead>
                           <tr>
                             <th style={{ border: '1px solid #000', padding: '6px', backgroundColor: '#f3f4f6', textAlign: 'center' }}>Вар.</th>
-                            {ALL_KEYS.map(k => <th key={k} style={{ border: '1px solid #000', padding: '6px', backgroundColor: '#f3f4f6', textAlign: 'center' }}>{k === 'angleHalfK' ? <Ang>K...</Ang> : LABEL_MAP[k]}</th>)}
+                            {ALL_KEYS.map(k => <th key={k} style={{ border: '1px solid #000', padding: '6px', backgroundColor: '#f3f4f6', textAlign: 'center' }}>{k === 'angleHalfK' ? <Ang>K...</Ang> : k === 'angleTangent' ? <Ang>E...</Ang> : LABEL_MAP[k]}</th>)}
                           </tr>
                         </thead>
                         <tbody>
@@ -652,6 +723,8 @@
                                 let subLabel = null;
                                 if (k === 'angleHalfK') {
                                     subLabel = v.kChord === 'AB' ? 'KOA' : v.kChord === 'BM' ? 'KOB' : v.kChord === 'MN' ? 'KOM' : 'KOA';
+                                } else if (k === 'angleTangent') {
+                                    subLabel = v.tPoint === 'A' ? 'BAE' : v.tPoint === 'B' ? 'MBE' : v.tPoint === 'M' ? 'NME' : 'ANE';
                                 }
                                 return (
                                   <td key={k} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', backgroundColor: isGiven ? '#e2e8f0' : 'transparent', fontWeight: isGiven ? 'bold' : 'normal' }}>
@@ -764,12 +837,10 @@
             >
               <div className="w-full md:w-[45%] lg:w-[38%] p-4 sm:p-5 md:p-8 bg-white md:shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] z-10 flex flex-col gap-4 md:gap-6 md:overflow-y-auto border-r border-slate-200">
                 
-                {/* ХЕДЪР */}
                 <div className="flex justify-between items-center bg-slate-50 p-2 md:p-2.5 rounded-2xl border border-slate-200 shadow-sm">
                   <button 
                     onClick={() => setCurrentScreen('home')}
                     className="text-white bg-gradient-to-r from-blue-500 to-indigo-500 font-bold p-2 md:p-2.5 rounded-xl shadow-lg shadow-blue-500/30 border border-b-[4px] border-indigo-700 hover:border-b-[2px] hover:translate-y-[2px] active:border-b-0 active:translate-y-[4px] transition-all flex-shrink-0"
-                    title="Към началната страница"
                   >
                     <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                   </button>
@@ -787,7 +858,7 @@
                     <button 
                       onClick={handleGenerateAndPrint}
                       disabled={isGenerating}
-                      className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 md:py-3.5 rounded-xl shadow-md border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-base md:text-lg"
+                      className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 md:py-3.5 rounded-xl shadow-md border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-base md:text-lg"
                     >
                       {isGenerating ? "⏳ Подготовка..." : "🖨️ Генерирай печат (17 вар.)"}
                     </button>
@@ -799,7 +870,6 @@
                         onChange={(e) => setTeacherKeyClass(e.target.value.toUpperCase())}
                         className="w-16 text-center text-lg font-bold text-indigo-800 border-2 border-indigo-200 rounded-xl py-2 outline-none focus:border-indigo-500 shadow-inner"
                         placeholder="Клас"
-                        title="Въведете буква на класа (напр. B, C, D)"
                       />
                       <button 
                         onClick={() => { setPrintModeType('keyOnly'); setIsPrintPreview(true); setTimeout(() => { window.print(); }, 500); }}
@@ -811,14 +881,12 @@
                   </div>
                 )}
 
-                {/* ТАБОВЕ */}
                 <div className="flex bg-slate-100 p-1 md:p-1.5 rounded-2xl shadow-inner border border-slate-200/60">
                   <button className={`flex-1 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-xl smooth-transition ${mode === 'learn' ? 'bg-white shadow-md text-blue-600 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => { setMode('learn'); clearAnswers(); }}>📖 Обучение</button>
                   <button className={`flex-1 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-xl smooth-transition ${mode === 'test' ? 'bg-white shadow-md text-emerald-600 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => { setMode('test'); clearAnswers(); setExamGenerated(false); }}>✍️ Тренировка</button>
                   <button className={`flex-1 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-xl smooth-transition ${mode === 'exam' ? 'bg-white shadow-md text-purple-600 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => { setMode('exam'); clearAnswers(); setExamGenerated(false); }}>🎓 Изпит</button>
                 </div>
 
-                {/* РЕЖИМ ИЗПИТ: ПОЛЕ ЗА ВЪВЕЖДАНЕ НА НОМЕР И КЛАС */}
                 {mode === 'exam' && !examGenerated && (
                   <div className="p-6 bg-purple-50 rounded-2xl border border-purple-200 shadow-sm text-center">
                     <h2 className="text-lg font-bold text-purple-800 mb-4">Въведете вашите данни:</h2>
@@ -858,14 +926,14 @@
                 {((mode !== 'exam') || (mode === 'exam' && examGenerated)) && (
                   <React.Fragment>
                     <div className={`p-4 md:p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-200/60 text-[14px] md:text-[15px] leading-relaxed text-slate-800 shadow-sm font-serif ${mode === 'exam' ? 'no-select' : ''}`}>
-                      На чертежа точките <i>A, B, M, N</i> и <i>K</i> лежат на окръжност с център <i>O</i>. Правата <i>BE</i> е допирателна към окръжността, а отсечката <i>KO</i> е перпендикулярна на хордата <i>{kChord}</i>. 
+                      На чертежа точките <i>A, B, M, N</i> и <i>K</i> лежат на окръжност с център <i>O</i>. Правата <i>{tPoint}E</i> е допирателна към окръжността, а отсечката <i>KO</i> е перпендикулярна на хордата <i>{kChord}</i>. 
                       <div className="mt-2 md:mt-3 p-2 md:p-3 bg-white/70 backdrop-blur-sm border border-amber-200 rounded-xl font-sans shadow-sm leading-normal">
-                        Ако {displayGivenKeys.map((key, i) => <span key={key} className="whitespace-nowrap"><b>{renderLabel(key, kChord)} = {correctAnswers[key]}°</b>{i < displayGivenKeys.length - 1 ? ', ' : ''}</span>)}, намерете:
+                        Ако {displayGivenKeys.map((key, i) => <span key={key} className="whitespace-nowrap"><b>{renderLabel(key, kChord, tPoint)} = {correctAnswers[key]}°</b>{i < displayGivenKeys.length - 1 ? ', ' : ''}</span>)}, намерете:
                       </div>
                     </div>
 
                     <div className={`flex md:hidden w-full bg-white shadow-sm border border-slate-200 rounded-2xl p-2 items-center justify-center relative my-1 ${mode === 'exam' ? 'no-select' : ''}`}>
-                      <GeometryDrawing baseAngle={baseAngle} arcAB={arcAB} arcBM={arcBM} angleMAN={angleMAN} kChord={kChord} givenKeys={displayGivenKeys} vals={correctAnswers} examWatermark={currentWatermark} />
+                      <GeometryDrawing baseAngle={baseAngle} arcAB={arcAB} arcBM={arcBM} angleMAN={angleMAN} kChord={kChord} tPoint={tPoint} givenKeys={displayGivenKeys} vals={correctAnswers} examWatermark={currentWatermark} />
                     </div>
 
                     {mode === 'learn' && (
@@ -876,24 +944,35 @@
                           <input type="range" min="0" max="360" value={baseAngle} onChange={(e) => setBaseAngle(Number(e.target.value))} className="w-full accent-slate-400 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
                         </div>
                         
-                        <div className="mt-3">
-                          <label className="flex justify-between text-xs md:text-sm font-semibold mb-1 md:mb-1.5 text-slate-700">
-                            <span>Хорда за KO (<span className="font-serif italic text-base">⊥</span>)</span> 
-                          </label>
-                          <div className="flex gap-1 bg-slate-200 p-1 rounded-lg">
-                             {['AN', 'AB', 'BM', 'MN'].map(ch => (
-                                <button 
-                                   key={ch}
-                                   onClick={() => setKChord(ch)}
-                                   className={`flex-1 py-1.5 text-xs font-bold rounded-md smooth-transition ${kChord === ch ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:bg-slate-300'}`}
-                                >
-                                   {ch}
-                                </button>
-                             ))}
+                        <div className="flex gap-4">
+                          <div className="flex-1 mt-3">
+                            <label className="block text-xs md:text-sm font-semibold mb-1 md:mb-1.5 text-slate-700">
+                              Хорда за KO (<span className="font-serif italic text-base">⊥</span>)
+                            </label>
+                            <div className="flex gap-1 bg-slate-200 p-1 rounded-lg">
+                               {['AN', 'AB', 'BM', 'MN'].map(ch => (
+                                  <button key={ch} onClick={() => setKChord(ch)} className={`flex-1 py-1.5 text-xs font-bold rounded-md smooth-transition ${kChord === ch ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:bg-slate-300'}`}>
+                                     {ch}
+                                  </button>
+                               ))}
+                            </div>
+                          </div>
+                          
+                          <div className="flex-1 mt-3">
+                            <label className="block text-xs md:text-sm font-semibold mb-1 md:mb-1.5 text-slate-700">
+                              Допирателна
+                            </label>
+                            <div className="flex gap-1 bg-slate-200 p-1 rounded-lg">
+                               {['A', 'B', 'M', 'N'].map(pt => (
+                                  <button key={pt} onClick={() => setTPoint(pt)} className={`flex-1 py-1.5 text-xs font-bold rounded-md smooth-transition ${tPoint === pt ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:bg-slate-300'}`}>
+                                     т. {pt}
+                                  </button>
+                               ))}
+                            </div>
                           </div>
                         </div>
 
-                        <div>
+                        <div className="pt-2">
                           <label className="flex justify-between text-xs md:text-sm font-semibold mb-1 md:mb-1.5 text-slate-700"><span>{LABEL_MAP.arcAB} (и {LABEL_MAP.angleAOB})</span> <span className="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200 text-blue-600">{arcAB}°</span></label>
                           <input type="range" min="30" max="180" step="10" value={arcAB} onChange={(e) => setArcAB(Number(e.target.value))} className="w-full accent-blue-500 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
                         </div>
@@ -928,20 +1007,20 @@
 
                           if (mode === 'learn') return (
                             <li key={key} className="flex justify-between items-center border-b border-blue-200/50 py-2 hover:bg-blue-100/50 px-2 md:px-3 rounded-xl smooth-transition text-[13px] sm:text-sm">
-                              <span className="text-slate-700">{String.fromCharCode(1072 + i)}) Мярка на <b>{renderLabel(key, kChord)}</b></span>
+                              <span className="text-slate-700">{String.fromCharCode(1072 + i)}) Мярка на <b>{renderLabel(key, kChord, tPoint)}</b></span>
                               <span className="font-bold text-blue-700 text-sm md:text-base bg-white px-2 md:px-3 py-1 rounded-lg shadow-sm border border-blue-200">{correctAnswers[key]}°</span>
                             </li>
                           );
                           
                           if (mode === 'exam') return (
                             <li key={key} className="flex justify-between items-center border-b border-purple-200/30 py-2 hover:bg-white/40 px-2 md:px-3 rounded-xl smooth-transition text-[13px] sm:text-sm">
-                              <span className="text-slate-800 font-medium">{String.fromCharCode(1072 + i)}) {renderLabel(key, kChord)} = ?</span>
+                              <span className="text-slate-800 font-medium">{String.fromCharCode(1072 + i)}) {renderLabel(key, kChord, tPoint)} = ?</span>
                             </li>
                           );
 
                           return (
                             <li key={key} className="flex flex-wrap sm:flex-nowrap justify-between items-center border-b border-emerald-200/30 py-2 hover:bg-white/40 px-1.5 md:px-2 rounded-xl smooth-transition gap-2">
-                              <span className="text-slate-700 font-medium text-[13px] sm:text-sm">{String.fromCharCode(1072 + i)}) Мярка на <b className="text-slate-900">{renderLabel(key, kChord)}</b></span>
+                              <span className="text-slate-700 font-medium text-[13px] sm:text-sm">{String.fromCharCode(1072 + i)}) Мярка на <b className="text-slate-900">{renderLabel(key, kChord, tPoint)}</b></span>
                               <div className="flex items-center gap-1 sm:gap-2 ml-auto">
                                 <div className="relative">
                                   <input 
@@ -987,7 +1066,7 @@
                   </div>
                 ) : (
                   <div className="w-full h-full max-w-4xl bg-white shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] rounded-[2rem] overflow-hidden p-6 lg:p-8 flex items-center justify-center relative border border-slate-200/60">
-                     <GeometryDrawing baseAngle={baseAngle} arcAB={arcAB} arcBM={arcBM} angleMAN={angleMAN} kChord={kChord} givenKeys={displayGivenKeys} vals={correctAnswers} examWatermark={currentWatermark} />
+                     <GeometryDrawing baseAngle={baseAngle} arcAB={arcAB} arcBM={arcBM} angleMAN={angleMAN} kChord={kChord} tPoint={tPoint} givenKeys={displayGivenKeys} vals={correctAnswers} examWatermark={currentWatermark} />
                   </div>
                 )}
               </div>
